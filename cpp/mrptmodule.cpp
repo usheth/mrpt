@@ -12,6 +12,7 @@
 #include <memory>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <iostream>
 
 #ifndef _WIN32
 #include <sys/mman.h>
@@ -33,6 +34,7 @@ typedef struct {
     bool mmap;
     int n;
     int dim;
+    std::vector<int> leaf_indices;
 } mrptIndex;
 
 static PyObject *Mrpt_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
@@ -157,6 +159,57 @@ static void mrpt_dealloc(mrptIndex *self) {
     Py_TYPE(self)->tp_free(reinterpret_cast<PyObject *>(self));
 }
 
+static PyObject *ann_from_leaves(mrptIndex *self, PyObject *args) {
+    PyObject *v;
+    PyObject *l;
+    int k, elect, dim, num_leaves, return_distances;
+
+    if (!PyArg_ParseTuple(args, "OOiiii", &v, &l, &num_leaves, &k, &elect, &return_distances))
+        return NULL;
+
+    float *indata = reinterpret_cast<float *>(PyArray_DATA(v));
+    const int *leaves = reinterpret_cast<int *>(PyArray_DATA(l));
+    PyObject *nearest;
+    dim = PyArray_DIM(v, 0);
+    npy_intp dims[1] = {k};
+    nearest = PyArray_SimpleNew(1, dims, NPY_INT);
+    int *outdata = reinterpret_cast<int *>(PyArray_DATA(nearest));
+    if (return_distances) {
+        PyObject *distances = PyArray_SimpleNew(1, dims, NPY_FLOAT32);
+        float *out_distances = reinterpret_cast<float *>(PyArray_DATA(distances));
+        self->ptr->query_from_leaves(Eigen::Map<VectorXf>(indata, dim), leaves, num_leaves, k, elect, outdata, out_distances);
+
+        PyObject *out_tuple = PyTuple_New(2);
+        PyTuple_SetItem(out_tuple, 0, nearest);
+        PyTuple_SetItem(out_tuple, 1, distances);
+        return out_tuple;
+    } else {
+        self->ptr->query_from_leaves(Eigen::Map<VectorXf>(indata, dim), leaves, num_leaves, k, elect, outdata);
+        return nearest;
+    }
+
+}
+
+static PyObject *get_leaves(mrptIndex *self, PyObject *args) {
+    PyObject *v;
+    int return_distances,n,dim;
+
+    if (!PyArg_ParseTuple(args, "Oi", &v, &return_distances))
+        return NULL;
+
+    float *indata = reinterpret_cast<float *>(PyArray_DATA(v));
+    PyObject *leaves;
+
+    self->leaf_indices.clear();
+
+    dim = PyArray_DIM(v, 0);
+    self->ptr->get_leaf_indices(Eigen::Map<VectorXf>(indata, dim), &self->leaf_indices);
+    npy_intp dims[1] = {self->leaf_indices.size()};
+    int *data = self->leaf_indices.data();
+    leaves = PyArray_SimpleNewFromData(1, dims, NPY_INT, reinterpret_cast<int *>(data));
+    return leaves;
+}
+
 static PyObject *ann(mrptIndex *self, PyObject *args) {
     PyObject *v;
     int k, elect, dim, n, return_distances;
@@ -168,6 +221,7 @@ static PyObject *ann(mrptIndex *self, PyObject *args) {
     PyObject *nearest;
 
     if (PyArray_NDIM(v) == 1) {
+
         dim = PyArray_DIM(v, 0);
 
         npy_intp dims[1] = {k};
@@ -313,6 +367,8 @@ static PyObject *load(mrptIndex *self, PyObject *args) {
 static PyMethodDef MrptMethods[] = {
     {"ann", (PyCFunction) ann, METH_VARARGS,
             "Return approximate nearest neighbors"},
+    {"ann_from_leaves", (PyCFunction) ann_from_leaves, METH_VARARGS,
+            "Return approximate nearest neighbors given only leaves"},
     {"exact_search", (PyCFunction) exact_search, METH_VARARGS,
             "Return exact nearest neighbors"},
     {"build", (PyCFunction) build, METH_VARARGS,
@@ -321,6 +377,8 @@ static PyMethodDef MrptMethods[] = {
             "Save the index to a file"},
     {"load", (PyCFunction) load, METH_VARARGS,
             "Load the index from a file"},
+    {"get_leaves", (PyCFunction) get_leaves, METH_VARARGS,
+            "Returns the leaves for a query point"},
     {NULL, NULL, 0, NULL} /* Sentinel */
 };
 

@@ -117,3 +117,17 @@ class MRPTIndex(object):
             raise ValueError("The query matrix should have type float32")
 
         return self.index.exact_search(Q, k, return_distances)
+
+    def get_leaves(self, q, return_distances=False):
+        if not self.built:
+            raise RuntimeError("Cannot query before building index")
+        if q.dtype != np.float32:
+            raise ValueError("The query matrix should have type float32")
+        return self.index.get_leaves(q, return_distances)
+
+    def ann_from_leaves(self, q, leaves, k, votes_required=1, return_distances=False):
+        if not self.built:
+            raise RuntimeError("Cannot query before building index")
+        if q.dtype != np.float32:
+            raise ValueError("The query matrix should have type float32")
+        return self.index.ann_from_leaves(q, leaves, len(leaves), k, votes_required, return_distances)

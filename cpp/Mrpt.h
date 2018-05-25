@@ -8,6 +8,9 @@
 #include <string>
 #include <vector>
 #include <cmath>
+#include <iostream>
+#include <map>
+#include <mutex>
 
 #include <Eigen/Dense>
 #include <Eigen/SparseCore>
@@ -71,22 +74,22 @@ class Mrpt {
         }
     }
 
-    /**
-    * This function finds the k approximate nearest neighbors of the query object
-    * q. The accuracy of the query depends on both the parameters used for index
-    * construction and additional parameters given to this function. This
-    * function implements two tricks to improve performance. The voting trick
-    * interprets each index object in leaves returned by tree traversals as votes,
-    * and only performs the final linear search with the 'elect' most voted
-    * objects.
-    * @param q - The query object whose neighbors the function finds
-    * @param k - The number of neighbors the user wants the function to return
-    * @param votes_required - The number of votes required for an object to be included in the linear search step
-    * @param out - The output buffer for the indices of the k approximate nearest neighbors
-    * @param out_distances - Output buffer for distances of the k approximate nearest neighbors (optional parameter)
-    * @return
-    */
-    void query(const Map<VectorXf> &q, int k, int votes_required, int *out, float *out_distances = nullptr) const {
+    void get_leaf_indices(const Map<VectorXf> &q, std::vector<int> *leaf_indices) const {
+        VectorXi found_leaves = find_leaves(q); 
+        for (int n_tree = 0; n_tree < n_trees; ++n_tree) {
+            const VectorXi &idx_one_tree = tree_leaves[n_tree][found_leaves(n_tree)];
+            const int nn = idx_one_tree.size(), *data = idx_one_tree.data();
+            for (int i = 0; i < nn; ++i, ++data) {
+                leaf_indices->push_back(*data);
+            }
+        }
+    }
+
+    void get_leaf_indices(const Map<VectorXf> &q, std::vector<int> *leaf_indices, std::map<int, std::vector<float>> *distances) const {
+        get_leaf_indices(q, leaf_indices);
+    }
+
+    VectorXi find_leaves(const Map<VectorXf> &q) const {
         VectorXf projected_query(n_pool);
         if (density < 1)
             projected_query.noalias() = sparse_random_matrix * q;
@@ -116,6 +119,69 @@ class Mrpt {
             found_leaves(n_tree) = idx_tree - (1 << depth) + 1;
         }
 
+        return found_leaves;
+    }
+
+    void query_from_leaves(const Map<VectorXf> &q, const int *leaves, int num_leaves, int k, 
+        int votes_required, int *out, float *out_distances = nullptr) const {
+
+        int n_elected = 0, max_leaf_size = n_samples / (1 << depth) + 1;
+        VectorXi elected(n_trees * max_leaf_size);
+        VectorXi votes = VectorXi::Zero(n_samples);
+
+        // count votes
+        for (int i=0;i<num_leaves;++i, ++leaves) {
+            if (++votes(*leaves) == votes_required) {
+                elected(n_elected++) = *leaves;
+            }
+        }
+
+        if (n_elected < k) {
+            /*
+            * If not enough samples had at least votes_required
+            * votes, find the maximum amount of votes needed such
+            * that the final search set size has at least k samples
+            */
+            VectorXf::Index max_index;
+            votes.maxCoeff(&max_index);
+            int max_votes = votes(max_index);
+
+            VectorXi vote_count = VectorXi::Zero(max_votes + 1);
+            for (int i = 0; i < n_samples; ++i)
+                vote_count(votes(i))++;
+
+            for (int would_elect = 0; max_votes; --max_votes) {
+                would_elect += vote_count(max_votes);
+                if (would_elect >= k) break;
+            }
+
+            for (int i = 0; i < n_samples; ++i) {
+                if (votes(i) >= max_votes && votes(i) < votes_required)
+                    elected(n_elected++) = i;
+            }
+        }
+
+        exact_knn(q, k, elected, n_elected, out, out_distances);
+    }
+
+    /**
+    * This function finds the k approximate nearest neighbors of the query object
+    * q. The accuracy of the query depends on both the parameters used for index
+    * construction and additional parameters given to this function. This
+    * function implements two tricks to improve performance. The voting trick
+    * interprets each index object in leaves returned by tree traversals as votes,
+    * and only performs the final linear search with the 'elect' most voted
+    * objects.
+    * @param q - The query object whose neighbors the function finds
+    * @param k - The number of neighbors the user wants the function to return
+    * @param votes_required - The number of votes required for an object to be included in the linear search step
+    * @param out - The output buffer for the indices of the k approximate nearest neighbors
+    * @param out_distances - Output buffer for distances of the k approximate nearest neighbors (optional parameter)
+    * @return
+    */
+    void query(const Map<VectorXf> &q, int k, int votes_required, int *out, float *out_distances = nullptr) const {
+        VectorXi found_leaves = find_leaves(q);
+        
         int n_elected = 0, max_leaf_size = n_samples / (1 << depth) + 1;
         VectorXi elected(n_trees * max_leaf_size);
         VectorXi votes = VectorXi::Zero(n_samples);
@@ -157,6 +223,7 @@ class Mrpt {
         }
 
         exact_knn(q, k, elected, n_elected, out, out_distances);
+
     }
 
     /**
