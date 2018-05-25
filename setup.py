@@ -19,7 +19,7 @@ else:
 setuptools.setup(
     name='mrpt',
     version='0.1',
-    url='http://github.com/teemupitkanen/mrpt',
+    url='http://github.com/usheth/mrpt',
     install_requires=[],
     packages={'.': 'mrpt'},
     zip_safe=False,
