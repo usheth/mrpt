@@ -179,6 +179,37 @@ static PyObject *get_leaves(mrptIndex *self, PyObject *args) {
     return leaves;
 }
 
+static PyObject *ann_from_leaves(mrptIndex *self, PyObject *args) {
+    PyObject *v;
+    PyObject *l;
+    int k, elect, dim, num_leaves, return_distances;
+
+    if (!PyArg_ParseTuple(args, "OOiiii", &v, &l, &num_leaves, &k, &elect, &return_distances))
+        return NULL;
+
+    float *indata = reinterpret_cast<float *>(PyArray_DATA(v));
+    const int *leaves = reinterpret_cast<int *>(PyArray_DATA(l));
+    PyObject *nearest;
+    dim = PyArray_DIM(v, 0);
+    npy_intp dims[1] = {k};
+    nearest = PyArray_SimpleNew(1, dims, NPY_INT);
+    int *outdata = reinterpret_cast<int *>(PyArray_DATA(nearest));
+    if (return_distances) {
+        PyObject *distances = PyArray_SimpleNew(1, dims, NPY_FLOAT32);
+        float *out_distances = reinterpret_cast<float *>(PyArray_DATA(distances));
+        self->ptr->query_from_leaves(Eigen::Map<VectorXf>(indata, dim), leaves, num_leaves, k, elect, outdata, out_distances);
+
+        PyObject *out_tuple = PyTuple_New(2);
+        PyTuple_SetItem(out_tuple, 0, nearest);
+        PyTuple_SetItem(out_tuple, 1, distances);
+        return out_tuple;
+    } else {
+        self->ptr->query_from_leaves(Eigen::Map<VectorXf>(indata, dim), leaves, num_leaves, k, elect, outdata);
+        return nearest;
+    }
+
+}
+
 static PyObject *get_leaf_info(mrptIndex *self, PyObject *args) {
     PyObject *v;
     int len,dimensions;
@@ -379,6 +410,8 @@ static PyObject *load(mrptIndex *self, PyObject *args) {
 static PyMethodDef MrptMethods[] = {
     {"ann", (PyCFunction) ann, METH_VARARGS,
             "Return approximate nearest neighbors"},
+    {"ann_from_leaves", (PyCFunction) ann_from_leaves, METH_VARARGS,
+            "Return approximate nearest neighbors given only leaves"},
     {"get_leaf_info", (PyCFunction) get_leaf_info, METH_VARARGS,
             "Returns the coordinates of the leaves by index"},
     {"exact_search", (PyCFunction) exact_search, METH_VARARGS,
@@ -490,3 +523,4 @@ PyMODINIT_FUNC initmrptlib(void) {
     PyModule_AddObject(m, "MrptIndex", reinterpret_cast<PyObject *>(&MrptIndexType));
 }
 #endif
+

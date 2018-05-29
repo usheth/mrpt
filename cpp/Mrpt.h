@@ -75,6 +75,65 @@ class Mrpt {
     }
 
     /**
+    * This function finds the k approximate nearest neighbors of the query object
+    * q from a set of candidate leaves. The accuracy of the query depends on both the parameters used for index
+    * construction and additional parameters given to this function. This
+    * function implements two tricks to improve performance. The voting trick
+    * interprets each index object in leaves returned by tree traversals as votes,
+    * and only performs the final linear search with the 'elect' most voted
+    * objects.
+    * @param q - The query object whose neighbors the function finds
+    * @param k - The number of neighbors the user wants the function to return
+    * @param votes_required - The number of votes required for an object to be included in the linear search step
+    * @param out - The output buffer for the indices of the k approximate nearest neighbors
+    * @param out_distances - Output buffer for distances of the k approximate nearest neighbors (optional parameter)
+    * @param leaves - Array containing candidate leaves
+    * @param num_leaves - Size of the array containing candidate leaves
+    * @return
+    */
+    void query_from_leaves(const Map<VectorXf> &q, const int *leaves, int num_leaves, int k, 
+        int votes_required, int *out, float *out_distances = nullptr) const {
+
+        int n_elected = 0, max_leaf_size = n_samples / (1 << depth) + 1;
+        VectorXi elected(n_trees * max_leaf_size);
+        VectorXi votes = VectorXi::Zero(n_samples);
+
+        // count votes
+        for (int i=0;i<num_leaves;++i, ++leaves) {
+            if (++votes(*leaves) == votes_required) {
+                elected(n_elected++) = *leaves;
+            }
+        }
+
+        if (n_elected < k) {
+            /*
+            * If not enough samples had at least votes_required
+            * votes, find the maximum amount of votes needed such
+            * that the final search set size has at least k samples
+            */
+            VectorXf::Index max_index;
+            votes.maxCoeff(&max_index);
+            int max_votes = votes(max_index);
+
+            VectorXi vote_count = VectorXi::Zero(max_votes + 1);
+            for (int i = 0; i < n_samples; ++i)
+                vote_count(votes(i))++;
+
+            for (int would_elect = 0; max_votes; --max_votes) {
+                would_elect += vote_count(max_votes);
+                if (would_elect >= k) break;
+            }
+
+            for (int i = 0; i < n_samples; ++i) {
+                if (votes(i) >= max_votes && votes(i) < votes_required)
+                    elected(n_elected++) = i;
+            }
+        }
+
+        exact_knn(q, k, elected, n_elected, out, out_distances);
+    }
+
+    /**
     * This function finds the dimensions corresponding to a leaf index.
     * @param leaf_index - Index of the leaf whose coordinates are to be found
     * @param coordinates - Pointer to array containing all the dimensions
@@ -450,3 +509,4 @@ class Mrpt {
 };
 
 #endif // CPP_MRPT_H_
+

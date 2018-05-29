@@ -156,3 +156,20 @@ class MRPTIndex(object):
         if Q.dtype != np.float32:
             raise ValueError("The query matrix should have type float32")
         return self.index.get_nearest_leaves(Q, leaves, len(leaves), k)
+
+    def ann_from_leaves(self, q, leaves, k, votes_required=1, return_distances=False):
+        """
+        Gets the coordinates for the set of k nearest from the
+        provided leaves/indices using the MRPT algorithm.
+        :param Q: The query object, i.e. the vector whose nearest leaves are returned
+        :param leaves: Candidate leaf indices
+        :param k: The number of closest leaves required
+        :return: Returns a list consisting of k closest leaves
+        :param votes_required: The number of votes an object has to get to be included in the linear search part of the query.
+        :param return_distances: Whether the distances are also returned
+        """
+        if not self.built:
+            raise RuntimeError("Cannot query before building index")
+        if q.dtype != np.float32:
+            raise ValueError("The query matrix should have type float32")
+        return self.index.ann_from_leaves(q, leaves, len(leaves), k, votes_required, return_distances)
