@@ -81,7 +81,10 @@ class Mrpt {
     */
     void get_leaf_info(int leaf_index, float* coordinates) {
         std::vector<float> v(X->col(leaf_index).data(), X->col(leaf_index).data() + X->col(leaf_index).size());
-        coordinates = &v[0];
+        int index=0;
+        for(auto &x : v) {
+            coordinates[index++] = x;
+        }
     }
 
     /**
