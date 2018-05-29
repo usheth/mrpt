@@ -118,7 +118,7 @@ class MRPTIndex(object):
 
         return self.index.exact_search(Q, k, return_distances)
 
-    def get_leaves(self, q):
+    def get_leaves(self, Q):
         """
         Gets the set of leaves corresponding to quert q
         :param Q: The query object, i.e. the vector whose leaves are returned
@@ -126,9 +126,9 @@ class MRPTIndex(object):
         """
         if not self.built:
             raise RuntimeError("Cannot query before building index")
-        if q.dtype != np.float32:
+        if Q.dtype != np.float32:
             raise ValueError("The query matrix should have type float32")
-        return self.index.get_leaves(q)
+        return self.index.get_leaves(Q)
 
     def get_leaf_info(self, leaves, dimensions):
         """
@@ -141,3 +141,18 @@ class MRPTIndex(object):
         if not self.built:
             raise RuntimeError("Cannot query before building index")
         return self.index.get_leaf_info(leaves, len(leaves), dimensions)
+
+    def get_nearest_leaves(self, Q, leaves, k):
+        """
+        Gets the coordinates for the set of k nearest from the
+        provided leaves/indices.
+        :param Q: The query object, i.e. the vector whose nearest leaves are returned
+        :param leaves: Candidate leaf indices
+        :param k: The number of closest leaves required
+        :return: Returns a list consisting of k closest leaves
+        """
+        if not self.built:
+            raise RuntimeError("Cannot query before building index")
+        if Q.dtype != np.float32:
+            raise ValueError("The query matrix should have type float32")
+        return self.index.get_nearest_leaves(Q, leaves, len(leaves), k)

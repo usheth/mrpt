@@ -265,6 +265,25 @@ static PyObject *ann(mrptIndex *self, PyObject *args) {
     }
 }
 
+static PyObject *get_nearest_leaves(mrptIndex *self, PyObject *args) {
+    PyObject *v,*leaves;
+    int num_leaves,k,dim;
+    if (!PyArg_ParseTuple(args, "OOii", &v, &leaves, &num_leaves, &k))
+        return NULL;
+    float *indata = reinterpret_cast<float *>(PyArray_DATA(v));
+    int *leaf_index = reinterpret_cast<int *>(PyArray_DATA(leaves));
+    dim = PyArray_DIM(v, 0);
+    npy_intp dims[1] = {k};
+    PyObject *nearest = PyArray_SimpleNew(1, dims, NPY_INT);
+    int *outdata = reinterpret_cast<int *>(PyArray_DATA(nearest));
+    VectorXi idx(num_leaves);
+    for(int i=0;i<num_leaves;i++) {
+        idx(i) = leaf_index[i];
+    }
+    self->ptr->exact_knn(Eigen::Map<VectorXf>(indata, dim), k, idx, num_leaves, outdata);
+    return nearest;
+}
+
 static PyObject *exact_search(mrptIndex *self, PyObject *args) {
     PyObject *v;
     int k, n, dim, return_distances;
@@ -371,6 +390,8 @@ static PyMethodDef MrptMethods[] = {
     {"load", (PyCFunction) load, METH_VARARGS,
             "Load the index from a file"},
     {"get_leaves", (PyCFunction) get_leaves, METH_VARARGS,
+            "Returns the leaves for a query point"},
+    {"get_nearest_leaves", (PyCFunction) get_nearest_leaves, METH_VARARGS,
             "Returns the leaves for a query point"},
     {NULL, NULL, 0, NULL} /* Sentinel */
 };
