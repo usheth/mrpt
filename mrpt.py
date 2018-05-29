@@ -118,16 +118,26 @@ class MRPTIndex(object):
 
         return self.index.exact_search(Q, k, return_distances)
 
-    def get_leaves(self, q, return_distances=False):
+    def get_leaves(self, q):
+        """
+        Gets the set of leaves corresponding to quert q
+        :param Q: The query object, i.e. the vector whose leaves are returned
+        :return: Returns a list of leaves corresponding to query q.
+        """
         if not self.built:
             raise RuntimeError("Cannot query before building index")
         if q.dtype != np.float32:
             raise ValueError("The query matrix should have type float32")
-        return self.index.get_leaves(q, return_distances)
+        return self.index.get_leaves(q)
 
-    def ann_from_leaves(self, q, leaves, k, votes_required=1, return_distances=False):
+    def get_leaf_info(self, leaves, dimensions):
+        """
+        Gets the coordinates for the set of leaves/indices provided
+        :param leaves: Indices for the leaves whose coordinates are returned
+        :param dimensions: The number of dimensions for each point in the dataset
+        :return: Returns a dict where key is the index of the leaf and value is a 
+        list of coordinate values.
+        """
         if not self.built:
             raise RuntimeError("Cannot query before building index")
-        if q.dtype != np.float32:
-            raise ValueError("The query matrix should have type float32")
-        return self.index.ann_from_leaves(q, leaves, len(leaves), k, votes_required, return_distances)
+        return self.index.get_leaf_info(leaves, len(leaves), dimensions)

@@ -159,42 +159,11 @@ static void mrpt_dealloc(mrptIndex *self) {
     Py_TYPE(self)->tp_free(reinterpret_cast<PyObject *>(self));
 }
 
-static PyObject *ann_from_leaves(mrptIndex *self, PyObject *args) {
-    PyObject *v;
-    PyObject *l;
-    int k, elect, dim, num_leaves, return_distances;
-
-    if (!PyArg_ParseTuple(args, "OOiiii", &v, &l, &num_leaves, &k, &elect, &return_distances))
-        return NULL;
-
-    float *indata = reinterpret_cast<float *>(PyArray_DATA(v));
-    const int *leaves = reinterpret_cast<int *>(PyArray_DATA(l));
-    PyObject *nearest;
-    dim = PyArray_DIM(v, 0);
-    npy_intp dims[1] = {k};
-    nearest = PyArray_SimpleNew(1, dims, NPY_INT);
-    int *outdata = reinterpret_cast<int *>(PyArray_DATA(nearest));
-    if (return_distances) {
-        PyObject *distances = PyArray_SimpleNew(1, dims, NPY_FLOAT32);
-        float *out_distances = reinterpret_cast<float *>(PyArray_DATA(distances));
-        self->ptr->query_from_leaves(Eigen::Map<VectorXf>(indata, dim), leaves, num_leaves, k, elect, outdata, out_distances);
-
-        PyObject *out_tuple = PyTuple_New(2);
-        PyTuple_SetItem(out_tuple, 0, nearest);
-        PyTuple_SetItem(out_tuple, 1, distances);
-        return out_tuple;
-    } else {
-        self->ptr->query_from_leaves(Eigen::Map<VectorXf>(indata, dim), leaves, num_leaves, k, elect, outdata);
-        return nearest;
-    }
-
-}
-
 static PyObject *get_leaves(mrptIndex *self, PyObject *args) {
     PyObject *v;
-    int return_distances,n,dim;
+    int n,dim;
 
-    if (!PyArg_ParseTuple(args, "Oi", &v, &return_distances))
+    if (!PyArg_ParseTuple(args, "O", &v))
         return NULL;
 
     float *indata = reinterpret_cast<float *>(PyArray_DATA(v));
@@ -208,6 +177,30 @@ static PyObject *get_leaves(mrptIndex *self, PyObject *args) {
     int *data = self->leaf_indices.data();
     leaves = PyArray_SimpleNewFromData(1, dims, NPY_INT, reinterpret_cast<int *>(data));
     return leaves;
+}
+
+static PyObject *get_leaf_info(mrptIndex *self, PyObject *args) {
+    PyObject *v;
+    int len,dimensions;
+    if (!PyArg_ParseTuple(args, "Oii", &v, &len, &dimensions))
+        return NULL;
+    int *leaf_indices = reinterpret_cast<int *>(PyArray_DATA(v));
+    PyObject *leaf_dict = PyDict_New();
+    npy_intp dims[1] = {dimensions};
+    float *vals;
+    PyObject *coordinates;
+    PyObject *key;
+    for(int i=0;i<len;i++) {
+        coordinates = PyArray_SimpleNew(1, dims, NPY_FLOAT32);
+        vals = reinterpret_cast<float *>(PyArray_DATA(coordinates));
+        self->ptr->get_leaf_info(leaf_indices[i],vals);
+        key = PyLong_FromLong((long)leaf_indices[i]);
+        PyDict_SetItem(leaf_dict,key,coordinates);
+        Py_DECREF(coordinates);
+        Py_DECREF(key);
+    }
+    return leaf_dict;
+
 }
 
 static PyObject *ann(mrptIndex *self, PyObject *args) {
@@ -367,8 +360,8 @@ static PyObject *load(mrptIndex *self, PyObject *args) {
 static PyMethodDef MrptMethods[] = {
     {"ann", (PyCFunction) ann, METH_VARARGS,
             "Return approximate nearest neighbors"},
-    {"ann_from_leaves", (PyCFunction) ann_from_leaves, METH_VARARGS,
-            "Return approximate nearest neighbors given only leaves"},
+    {"get_leaf_info", (PyCFunction) get_leaf_info, METH_VARARGS,
+            "Returns the coordinates of the leaves by index"},
     {"exact_search", (PyCFunction) exact_search, METH_VARARGS,
             "Return exact nearest neighbors"},
     {"build", (PyCFunction) build, METH_VARARGS,

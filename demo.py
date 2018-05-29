@@ -37,18 +37,3 @@ correct_neighbors = 0
 for i in range(n_queries):
     correct_neighbors += len(np.intersect1d(exact_neighbors[i], approximate_neighbors[i]))
 print ('Average recall: %1.2f.' %(float(correct_neighbors)/(n_queries*k)))
-
-
-print ("Getting ANN from leaves")
-leaves_time = time()
-for i in range(n_queries):
- 	leaves = index.get_leaves(queries[i])
- 	approximate_neighbors[i] = index.ann_from_leaves(queries[i], leaves, k, votes_required=4)
- 	#print ("Leaves for query " + str(i) + " = " + str(leaves))
-
-leaves_time = time() - leaves_time
-print ('%d approximate queries time from leaves: %1.3f seconds' %(n_queries, leaves_time))
-correct_neighbors = 0
-for i in range(n_queries):
-    correct_neighbors += len(np.intersect1d(exact_neighbors[i], approximate_neighbors[i]))
-print ('Average recall: %1.2f.' %(float(correct_neighbors)/(n_queries*k)))

@@ -74,6 +74,21 @@ class Mrpt {
         }
     }
 
+    /**
+    * This function finds the dimensions corresponding to a leaf index.
+    * @param leaf_index - Index of the leaf whose coordinates are to be found
+    * @param coordinates - Pointer to array containing all the dimensions
+    */
+    void get_leaf_info(int leaf_index, float* coordinates) {
+        std::vector<float> v(X->col(leaf_index).data(), X->col(leaf_index).data() + X->col(leaf_index).size());
+        coordinates = &v[0];
+    }
+
+    /**
+    * This function finds all the leaves that correspond to a query q.
+    * @param q - The query object whose leaves are to be returned
+    * @param leaf_indices - The vector that will contain the leaf indices on returning
+    */
     void get_leaf_indices(const Map<VectorXf> &q, std::vector<int> *leaf_indices) const {
         VectorXi found_leaves = find_leaves(q); 
         for (int n_tree = 0; n_tree < n_trees; ++n_tree) {
@@ -83,10 +98,6 @@ class Mrpt {
                 leaf_indices->push_back(*data);
             }
         }
-    }
-
-    void get_leaf_indices(const Map<VectorXf> &q, std::vector<int> *leaf_indices, std::map<int, std::vector<float>> *distances) const {
-        get_leaf_indices(q, leaf_indices);
     }
 
     VectorXi find_leaves(const Map<VectorXf> &q) const {
@@ -120,48 +131,6 @@ class Mrpt {
         }
 
         return found_leaves;
-    }
-
-    void query_from_leaves(const Map<VectorXf> &q, const int *leaves, int num_leaves, int k, 
-        int votes_required, int *out, float *out_distances = nullptr) const {
-
-        int n_elected = 0, max_leaf_size = n_samples / (1 << depth) + 1;
-        VectorXi elected(n_trees * max_leaf_size);
-        VectorXi votes = VectorXi::Zero(n_samples);
-
-        // count votes
-        for (int i=0;i<num_leaves;++i, ++leaves) {
-            if (++votes(*leaves) == votes_required) {
-                elected(n_elected++) = *leaves;
-            }
-        }
-
-        if (n_elected < k) {
-            /*
-            * If not enough samples had at least votes_required
-            * votes, find the maximum amount of votes needed such
-            * that the final search set size has at least k samples
-            */
-            VectorXf::Index max_index;
-            votes.maxCoeff(&max_index);
-            int max_votes = votes(max_index);
-
-            VectorXi vote_count = VectorXi::Zero(max_votes + 1);
-            for (int i = 0; i < n_samples; ++i)
-                vote_count(votes(i))++;
-
-            for (int would_elect = 0; max_votes; --max_votes) {
-                would_elect += vote_count(max_votes);
-                if (would_elect >= k) break;
-            }
-
-            for (int i = 0; i < n_samples; ++i) {
-                if (votes(i) >= max_votes && votes(i) < votes_required)
-                    elected(n_elected++) = i;
-            }
-        }
-
-        exact_knn(q, k, elected, n_elected, out, out_distances);
     }
 
     /**
