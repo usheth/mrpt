@@ -142,7 +142,7 @@ class MRPTIndex(object):
             raise RuntimeError("Cannot query before building index")
         return self.index.get_leaf_info(leaves, len(leaves), dimensions)
 
-    def get_nearest_leaves(self, Q, leaves, k):
+    def exact_nn_from_leaves(self, Q, leaves, k):
         """
         Gets the coordinates for the set of k nearest from the
         provided leaves/indices.
