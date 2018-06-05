@@ -153,7 +153,7 @@ class Mrpt {
     */
     void get_leaf_indices(const Map<VectorXf> &q, std::vector<int> *leaf_indices) const {
         VectorXi found_leaves = find_leaves(q); 
-        int votes_required = 3;
+        int votes_required = 5;
         VectorXi votes = VectorXi::Zero(n_samples);
         for (int n_tree = 0; n_tree < n_trees; ++n_tree) {
             const VectorXi &idx_one_tree = tree_leaves[n_tree][found_leaves(n_tree)];
