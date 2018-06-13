@@ -159,6 +159,30 @@ static void mrpt_dealloc(mrptIndex *self) {
     Py_TYPE(self)->tp_free(reinterpret_cast<PyObject *>(self));
 }
 
+static PyObject *get_leaf_info(mrptIndex *self, PyObject *args) {
+    PyObject *v;
+    int len,dimensions;
+    if (!PyArg_ParseTuple(args, "Oii", &v, &len, &dimensions))
+        return NULL;
+    int *leaf_indices = reinterpret_cast<int *>(PyArray_DATA(v));
+    PyObject *leaf_dict = PyDict_New();
+    npy_intp dims[1] = {dimensions};
+    float *vals;
+    PyObject *coordinates;
+    PyObject *key;
+    for(int i=0;i<len;i++) {
+        coordinates = PyArray_SimpleNew(1, dims, NPY_FLOAT32);
+        vals = reinterpret_cast<float *>(PyArray_DATA(coordinates));
+        self->ptr->get_leaf_info(leaf_indices[i],vals);
+        key = PyLong_FromLong((long)leaf_indices[i]);
+        PyDict_SetItem(leaf_dict,key,coordinates);
+        Py_DECREF(coordinates);
+        Py_DECREF(key);
+    }
+    return leaf_dict;
+
+}
+
 static PyObject *get_leaves(mrptIndex *self, PyObject *args) {
     PyObject *v;
     int n,dim;
@@ -207,30 +231,6 @@ static PyObject *ann_from_leaves(mrptIndex *self, PyObject *args) {
         self->ptr->query_from_leaves(Eigen::Map<VectorXf>(indata, dim), leaves, num_leaves, k, elect, outdata);
         return nearest;
     }
-
-}
-
-static PyObject *get_leaf_info(mrptIndex *self, PyObject *args) {
-    PyObject *v;
-    int len,dimensions;
-    if (!PyArg_ParseTuple(args, "Oii", &v, &len, &dimensions))
-        return NULL;
-    int *leaf_indices = reinterpret_cast<int *>(PyArray_DATA(v));
-    PyObject *leaf_dict = PyDict_New();
-    npy_intp dims[1] = {dimensions};
-    float *vals;
-    PyObject *coordinates;
-    PyObject *key;
-    for(int i=0;i<len;i++) {
-        coordinates = PyArray_SimpleNew(1, dims, NPY_FLOAT32);
-        vals = reinterpret_cast<float *>(PyArray_DATA(coordinates));
-        self->ptr->get_leaf_info(leaf_indices[i],vals);
-        key = PyLong_FromLong((long)leaf_indices[i]);
-        PyDict_SetItem(leaf_dict,key,coordinates);
-        Py_DECREF(coordinates);
-        Py_DECREF(key);
-    }
-    return leaf_dict;
 
 }
 
