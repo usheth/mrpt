@@ -455,6 +455,8 @@ static PyObject *load(mrptIndex *self, PyObject *args) {
 }
 
 static PyMethodDef MrptMethods[] = {
+    {"filter_leaves_by_votes", (PyCFunction) filter_leaves_by_votes, METH_VARARGS,
+            "Filters list of leaves by votes"},
     {"ann", (PyCFunction) ann, METH_VARARGS,
             "Return approximate nearest neighbors"},
     {"ann_from_leaves", (PyCFunction) ann_from_leaves, METH_VARARGS,
