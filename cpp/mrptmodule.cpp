@@ -34,7 +34,6 @@ typedef struct {
     bool mmap;
     int n;
     int dim;
-    std::vector<int> leaf_indices;
 } mrptIndex;
 
 static PyObject *Mrpt_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
@@ -159,7 +158,6 @@ static void mrpt_dealloc(mrptIndex *self) {
     Py_TYPE(self)->tp_free(reinterpret_cast<PyObject *>(self));
 }
 
-
 template<typename T>
 static PyArrayObject* vector_to_nparray(const std::vector<T>& vec, int type_num = PyArray_FLOAT){
 
@@ -168,6 +166,8 @@ static PyArrayObject* vector_to_nparray(const std::vector<T>& vec, int type_num 
 
        size_t nRows = vec.size();
        npy_intp dims[1] = {nRows};
+
+       std::cout<<"Voted leaves = "<<nRows<<"\n";
 
        PyArrayObject* vec_array = (PyArrayObject *) PyArray_SimpleNew(1, dims, type_num);
        T *vec_array_pointer = (T*) PyArray_DATA(vec_array);
@@ -183,6 +183,22 @@ static PyArrayObject* vector_to_nparray(const std::vector<T>& vec, int type_num 
 
 }
 
+static PyArrayObject *get_leaves(mrptIndex *self, PyObject *args) {
+    PyObject *v;
+    int n,dim;
+
+    if (!PyArg_ParseTuple(args, "O", &v))
+        return NULL;
+
+    float *indata = reinterpret_cast<float *>(PyArray_DATA(v));
+
+    std::vector<int> leaf_indices;
+
+    dim = PyArray_DIM(v, 0);
+    self->ptr->get_leaf_indices(Eigen::Map<VectorXf>(indata, dim), &leaf_indices);
+    PyArrayObject *leaves = vector_to_nparray(leaf_indices,PyArray_INT);
+    return leaves;
+}
 
 static PyArrayObject *filter_leaves_by_votes(mrptIndex *self, PyObject *args) {
     PyObject *l;
@@ -192,62 +208,14 @@ static PyArrayObject *filter_leaves_by_votes(mrptIndex *self, PyObject *args) {
     if (!PyArg_ParseTuple(args, "Oii", &l, &num_leaves, &votes_required))
         return NULL;
 
-    VectorXi votes = VectorXi::Zero(num_leaves);
     std::vector<int> voted_leaves;
-    int *leaves = reinterpret_cast<int *>(PyArray_DATA(l));
-    for(int i=0;i<num_leaves;i++,leaves++) {
-        if(++votes(*leaves) == votes_required){
-            voted_leaves.push_back(*leaves);
-        }
-    }
+    const int *leaves = reinterpret_cast<int *>(PyArray_DATA(l));
+
+    self->ptr->filter_leaves_by_votes(leaves,num_leaves,&voted_leaves,votes_required);
 
     PyArrayObject *final_leaves = vector_to_nparray(voted_leaves,PyArray_INT);
     return final_leaves;
 
-}
-
-static PyObject *get_leaf_info(mrptIndex *self, PyObject *args) {
-    PyObject *v;
-    int len,dimensions;
-    if (!PyArg_ParseTuple(args, "Oii", &v, &len, &dimensions))
-        return NULL;
-    int *leaf_indices = reinterpret_cast<int *>(PyArray_DATA(v));
-    PyObject *leaf_dict = PyDict_New();
-    npy_intp dims[1] = {dimensions};
-    float *vals;
-    PyObject *coordinates;
-    PyObject *key;
-    for(int i=0;i<len;i++) {
-        coordinates = PyArray_SimpleNew(1, dims, NPY_FLOAT32);
-        vals = reinterpret_cast<float *>(PyArray_DATA(coordinates));
-        self->ptr->get_leaf_info(leaf_indices[i],vals);
-        key = PyLong_FromLong((long)leaf_indices[i]);
-        PyDict_SetItem(leaf_dict,key,coordinates);
-        Py_DECREF(coordinates);
-        Py_DECREF(key);
-    }
-    return leaf_dict;
-
-}
-
-static PyObject *get_leaves(mrptIndex *self, PyObject *args) {
-    PyObject *v;
-    int n,dim;
-
-    if (!PyArg_ParseTuple(args, "O", &v))
-        return NULL;
-
-    float *indata = reinterpret_cast<float *>(PyArray_DATA(v));
-    PyObject *leaves;
-
-    self->leaf_indices.clear();
-
-    dim = PyArray_DIM(v, 0);
-    self->ptr->get_leaf_indices(Eigen::Map<VectorXf>(indata, dim), &self->leaf_indices);
-    npy_intp dims[1] = {self->leaf_indices.size()};
-    int *data = self->leaf_indices.data();
-    leaves = PyArray_SimpleNewFromData(1, dims, NPY_INT, reinterpret_cast<int *>(data));
-    return leaves;
 }
 
 static PyObject *ann_from_leaves(mrptIndex *self, PyObject *args) {
@@ -456,13 +424,11 @@ static PyObject *load(mrptIndex *self, PyObject *args) {
 
 static PyMethodDef MrptMethods[] = {
     {"filter_leaves_by_votes", (PyCFunction) filter_leaves_by_votes, METH_VARARGS,
-            "Filters list of leaves by votes"},
+            "Filters array of leaves by votes required"},
     {"ann", (PyCFunction) ann, METH_VARARGS,
             "Return approximate nearest neighbors"},
     {"ann_from_leaves", (PyCFunction) ann_from_leaves, METH_VARARGS,
             "Return approximate nearest neighbors given only leaves"},
-    {"get_leaf_info", (PyCFunction) get_leaf_info, METH_VARARGS,
-            "Returns the coordinates of the leaves by index"},
     {"exact_search", (PyCFunction) exact_search, METH_VARARGS,
             "Return exact nearest neighbors"},
     {"build", (PyCFunction) build, METH_VARARGS,

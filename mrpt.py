@@ -130,18 +130,6 @@ class MRPTIndex(object):
             raise ValueError("The query matrix should have type float32")
         return self.index.get_leaves(Q)
 
-    def get_leaf_info(self, leaves, dimensions):
-        """
-        Gets the coordinates for the set of leaves/indices provided
-        :param leaves: Indices for the leaves whose coordinates are returned
-        :param dimensions: The number of dimensions for each point in the dataset
-        :return: Returns a dict where key is the index of the leaf and value is a 
-        list of coordinate values.
-        """
-        if not self.built:
-            raise RuntimeError("Cannot query before building index")
-        return self.index.get_leaf_info(leaves, len(leaves), dimensions)
-
     def exact_nn_from_leaves(self, Q, leaves, k):
         """
         Gets the coordinates for the set of k nearest from the
@@ -175,4 +163,6 @@ class MRPTIndex(object):
         return self.index.ann_from_leaves(q, leaves, len(leaves), k, votes_required, return_distances)
 
     def filter_leaves_by_votes(self, leaves, votes_required=1):
+        if not self.built:
+            raise RuntimeError("Cannot get voted leaves before building index")
         return self.index.filter_leaves_by_votes(leaves,len(leaves),votes_required)
