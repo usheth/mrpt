@@ -175,6 +175,4 @@ class MRPTIndex(object):
         return self.index.ann_from_leaves(q, leaves, len(leaves), k, votes_required, return_distances)
 
     def filter_leaves_by_votes(self, leaves, votes_required=1):
-        if not self.built:
-            raise RuntimeError("Cannot get voted leaves before building index")
         return self.index.filter_leaves_by_votes(leaves,len(leaves),votes_required)
