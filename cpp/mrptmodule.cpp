@@ -34,7 +34,6 @@ typedef struct {
     bool mmap;
     int n;
     int dim;
-    std::vector<int> leaf_indices;
 } mrptIndex;
 
 static PyObject *Mrpt_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
@@ -183,26 +182,6 @@ static PyObject *get_leaf_info(mrptIndex *self, PyObject *args) {
 
 }
 
-static PyObject *get_leaves(mrptIndex *self, PyObject *args) {
-    PyObject *v;
-    int n,dim;
-
-    if (!PyArg_ParseTuple(args, "O", &v))
-        return NULL;
-
-    float *indata = reinterpret_cast<float *>(PyArray_DATA(v));
-    PyObject *leaves;
-
-    self->leaf_indices.clear();
-
-    dim = PyArray_DIM(v, 0);
-    self->ptr->get_leaf_indices(Eigen::Map<VectorXf>(indata, dim), &self->leaf_indices);
-    npy_intp dims[1] = {self->leaf_indices.size()};
-    int *data = self->leaf_indices.data();
-    leaves = PyArray_SimpleNewFromData(1, dims, NPY_INT, reinterpret_cast<int *>(data));
-    return leaves;
-}
-
 template<typename T>
 static PyArrayObject* vector_to_nparray(const std::vector<T>& vec, int type_num = PyArray_FLOAT){
 
@@ -226,6 +205,23 @@ static PyArrayObject* vector_to_nparray(const std::vector<T>& vec, int type_num 
 
 }
 
+static PyArrayObject *get_leaves(mrptIndex *self, PyObject *args) {
+    PyObject *v;
+    int n,dim;
+
+    if (!PyArg_ParseTuple(args, "O", &v))
+        return NULL;
+
+    float *indata = reinterpret_cast<float *>(PyArray_DATA(v));
+
+    std::vector<int> leaf_indices;
+
+    dim = PyArray_DIM(v, 0);
+    self->ptr->get_leaf_indices(Eigen::Map<VectorXf>(indata, dim), &leaf_indices);
+    PyArrayObject *leaves = vector_to_nparray(leaf_indices,PyArray_INT);
+    return leaves;
+}
+
 static PyArrayObject *filter_leaves_by_votes(mrptIndex *self, PyObject *args) {
     PyObject *l;
 
@@ -234,9 +230,9 @@ static PyArrayObject *filter_leaves_by_votes(mrptIndex *self, PyObject *args) {
     if (!PyArg_ParseTuple(args, "Oii", &l, &num_leaves, &votes_required))
         return NULL;
 
-    VectorXi votes(num_leaves);
+    VectorXi votes = VectorXi::Zero(num_leaves);
     std::vector<int> voted_leaves;
-    const int *leaves = reinterpret_cast<int *>(PyArray_DATA(l));
+    int *leaves = reinterpret_cast<int *>(PyArray_DATA(l));
     for(int i=0;i<num_leaves;i++,leaves++) {
         if(++votes(*leaves) == votes_required){
             voted_leaves.push_back(*leaves);
