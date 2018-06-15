@@ -203,6 +203,51 @@ static PyObject *get_leaves(mrptIndex *self, PyObject *args) {
     return leaves;
 }
 
+template<typename T>
+static PyArrayObject* vector_to_nparray(const std::vector<T>& vec, int type_num = PyArray_FLOAT){
+
+   // rows not empty
+   if( !vec.empty() ){
+
+       size_t nRows = vec.size();
+       npy_intp dims[1] = {nRows};
+
+       PyArrayObject* vec_array = (PyArrayObject *) PyArray_SimpleNew(1, dims, type_num);
+       T *vec_array_pointer = (T*) PyArray_DATA(vec_array);
+
+       std::copy(vec.begin(),vec.end(),vec_array_pointer);
+       return vec_array;
+
+   // no data at all
+   } else {
+      npy_intp dims[1] = {0};
+      return (PyArrayObject*) PyArray_ZEROS(1, dims, PyArray_FLOAT, 0);
+   }
+
+}
+
+static PyArrayObject *filter_leaves_by_votes(mrptIndex *self, PyObject *args) {
+    PyObject *l;
+
+    int num_leaves,votes_required, dim;
+
+    if (!PyArg_ParseTuple(args, "Oii", &l, &num_leaves, &votes_required))
+        return NULL;
+
+    VectorXi votes(num_leaves);
+    std::vector<int> voted_leaves;
+    const int *leaves = reinterpret_cast<int *>(PyArray_DATA(l));
+    for(int i=0;i<num_leaves;i++,leaves++) {
+        if(++votes(*leaves) == votes_required){
+            voted_leaves.push_back(*leaves);
+        }
+    }
+
+    PyArrayObject *final_leaves = vector_to_nparray(voted_leaves,PyArray_INT);
+    return final_leaves;
+
+}
+
 static PyObject *ann_from_leaves(mrptIndex *self, PyObject *args) {
     PyObject *v;
     PyObject *l;
@@ -408,6 +453,8 @@ static PyObject *load(mrptIndex *self, PyObject *args) {
 }
 
 static PyMethodDef MrptMethods[] = {
+    {"filter_leaves_by_votes", (PyCFunction) filter_leaves_by_votes, METH_VARARGS,
+            "Filters array of leaves by votes required"},
     {"ann", (PyCFunction) ann, METH_VARARGS,
             "Return approximate nearest neighbors"},
     {"ann_from_leaves", (PyCFunction) ann_from_leaves, METH_VARARGS,
