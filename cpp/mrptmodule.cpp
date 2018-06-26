@@ -87,10 +87,10 @@ float *read_mmap(char *file, int n, int dim) {
 
 static int Mrpt_init(mrptIndex *self, PyObject *args) {
     PyObject *py_data;
-    int depth, n_trees, n, dim, mmap, keep_data;
+    int depth, n_trees, n, dim, mmap;
     float density;
 
-    if (!PyArg_ParseTuple(args, "Oiiiifii", &py_data, &n, &dim, &depth, &n_trees, &density, &mmap, &keep_data))
+    if (!PyArg_ParseTuple(args, "Oiiiifi", &py_data, &n, &dim, &depth, &n_trees, &density, &mmap))
         return -1;
 
     float *data;
@@ -114,21 +114,18 @@ static int Mrpt_init(mrptIndex *self, PyObject *args) {
         }
 
 #ifndef _WIN32
-        if(keep_data) {
         data = mmap ? read_mmap(file, n, dim) : read_memory(file, n, dim);
 #else
         data = read_memory(file, n, dim);
 #endif
 
-         if (data == NULL) {
+        if (data == NULL) {
             PyErr_SetString(PyExc_IOError, "Unable to read data from file or allocate memory for it");
             return -1;
         }
 
         self->mmap = mmap;
         self->data = data;
-        }
-
     } else {
         data = reinterpret_cast<float *>(PyArray_DATA(py_data));
     }

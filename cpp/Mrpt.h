@@ -50,7 +50,7 @@ class Mrpt {
     * arrays to store the tree structures and computes all the projections needed
     * later. Then repeatedly calls method grow_subtree that builds a single RP-tree.
     */
-    void grow() {
+    void grow(int keep_data) {
         // generate the random matrix
         density < 1 ? build_sparse_random_matrix() : build_dense_random_matrix();
 

@@ -8,7 +8,7 @@ class MRPTIndex(object):
     """
     Wraps the extension module written in C++
     """
-    def __init__(self, data, depth, n_trees, projection_sparsity='auto', shape=None, mmap=False, keep_data=True):
+    def __init__(self, data, depth, n_trees, projection_sparsity='auto', shape=None, mmap=False):
         """
         Initializes an MRPT index object.
         :param data: Input data either as a NxDim numpy ndarray or as a filepath to a binary file containing the data
@@ -52,7 +52,7 @@ class MRPTIndex(object):
         if mmap and os.name == 'nt':
             raise ValueError("Memory mapping is not available on Windows")
 
-        self.index = mrptlib.MrptIndex(data, n_samples, dim, depth, n_trees, projection_sparsity, mmap, keep_data)
+        self.index = mrptlib.MrptIndex(data, n_samples, dim, depth, n_trees, projection_sparsity, mmap)
         self.built = False
 
     def build(self):
