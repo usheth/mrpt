@@ -73,7 +73,9 @@ class Mrpt {
             tree_leaves[n_tree] = t;
         }
 
-        X->resize(0,0);
+        if(!keep_data) {
+        	X->resize(0,0);
+    	}
     }
 
     /**
