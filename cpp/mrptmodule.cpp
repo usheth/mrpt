@@ -133,15 +133,24 @@ static int Mrpt_init(mrptIndex *self, PyObject *args) {
     self->n = n;
     self->dim = dim;
 
-    const Eigen::Map<const MatrixXf> *X = new Eigen::Map<const MatrixXf>(data, dim, n);
+    Eigen::Map<const MatrixXf> *X = new Eigen::Map<const MatrixXf>(data, dim, n);
     self->ptr = new Mrpt(X, n_trees, depth, density);
 
     return 0;
 }
 
-static PyObject *build(mrptIndex *self) {
-    self->ptr->grow();
-    delete self->data;
+static PyObject *build(mrptIndex *self, PyObject *args) {
+    int keep_data;
+
+    if (!PyArg_ParseTuple(args, "i", &keep_data))
+        return NULL;
+
+    self->ptr->grow(keep_data);
+
+    if(!keep_data) {
+        delete[] self->data;
+    }
+
     Py_RETURN_NONE;
 }
 

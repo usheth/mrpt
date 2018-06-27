@@ -32,7 +32,7 @@ class Mrpt {
     * @param depth_ - The depth of the trees.
     * @param density_ - Expected ratio of non-zero components in a projection matrix.
     */
-    Mrpt(const Map<const MatrixXf> *X_, int n_trees_, int depth_, float density_) :
+    Mrpt(Map<const MatrixXf> *X_, int n_trees_, int depth_, float density_) :
         X(X_),
         n_samples(X_->cols()),
         dim(X_->rows()),
@@ -50,7 +50,7 @@ class Mrpt {
     * arrays to store the tree structures and computes all the projections needed
     * later. Then repeatedly calls method grow_subtree that builds a single RP-tree.
     */
-    void grow() {
+    void grow(int keep_data) {
         // generate the random matrix
         density < 1 ? build_sparse_random_matrix() : build_dense_random_matrix();
 
@@ -73,7 +73,7 @@ class Mrpt {
             tree_leaves[n_tree] = t;
         }
 
-        delete X;
+        X->resize(0,0);
     }
 
     /**
@@ -503,7 +503,7 @@ class Mrpt {
                       [&normal_dist, &gen] { return normal_dist(gen); });
     }
 
-    const Map<const MatrixXf> *X; // the data matrix
+    Map<const MatrixXf> *X; // the data matrix
     MatrixXf split_points; // all split points in all trees
     std::vector<std::vector<VectorXi>> tree_leaves; // contains all leaves of all trees,
                                                     // indexed as tree_leaves[tree number][leaf number][index in leaf]

@@ -55,12 +55,12 @@ class MRPTIndex(object):
         self.index = mrptlib.MrptIndex(data, n_samples, dim, depth, n_trees, projection_sparsity, mmap)
         self.built = False
 
-    def build(self):
+    def build(self,keep_data=True):
         """
         Builds the MRPT index.
         :return:
         """
-        self.index.build()
+        self.index.build(keep_data)
         self.built = True
 
     def save(self, path):
