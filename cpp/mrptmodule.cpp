@@ -141,6 +141,7 @@ static int Mrpt_init(mrptIndex *self, PyObject *args) {
 
 static PyObject *build(mrptIndex *self) {
     self->ptr->grow();
+    delete self->data;
     Py_RETURN_NONE;
 }
 

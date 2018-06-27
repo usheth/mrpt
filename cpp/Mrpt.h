@@ -72,6 +72,8 @@ class Mrpt {
             std::vector<VectorXi> t = grow_subtree(indices, 0, 0, n_tree, tree_projections);
             tree_leaves[n_tree] = t;
         }
+
+        delete X;
     }
 
     /**
