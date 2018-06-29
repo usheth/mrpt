@@ -177,8 +177,6 @@ static PyArrayObject* vector_to_nparray(const std::vector<T>& vec, int type_num 
        size_t nRows = vec.size();
        npy_intp dims[1] = {nRows};
 
-       std::cout<<"Voted leaves = "<<nRows<<"\n";
-
        PyArrayObject* vec_array = (PyArrayObject *) PyArray_SimpleNew(1, dims, type_num);
        T *vec_array_pointer = (T*) PyArray_DATA(vec_array);
 
