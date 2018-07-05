@@ -62,6 +62,7 @@ class Mrpt {
 
         #pragma omp parallel for
         for (int n_tree = 0; n_tree < n_trees; ++n_tree) {
+            std::cout<<"Building tree "<<n_tree<<"\n";
             MatrixXf tree_projections;
 
             if (density < 1)
